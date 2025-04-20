@@ -1,0 +1,9 @@
+.DS_Store
+.vscode/
+*.test
+*.wav
+*.prof
+*.txt
+*.env
+/build
+/logs
