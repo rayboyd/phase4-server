@@ -43,22 +43,22 @@ type DSPConfig struct {
 func LoadConfig() (*Config, error) {
 	cfg := getDefaultConfig()
 
-	var fp string = ""
+	var filePath = ""
 	candidates := []string{
 		"config.yaml",
 		"config/config.yaml",
 	}
 	for _, candidate := range candidates {
 		if _, err := os.Stat(candidate); err == nil {
-			fp = candidate
+			filePath = candidate
 			break
 		}
 	}
-	if fp == "" {
+	if filePath == "" {
 		return nil, app.ErrFileNotFound
 	}
 
-	data, err := os.ReadFile(fp)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}

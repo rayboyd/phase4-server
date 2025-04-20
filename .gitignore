@@ -5,5 +5,5 @@
 *.prof
 *.txt
 *.env
-/build
+/bin
 /logs

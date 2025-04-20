@@ -5,7 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"phase4/internal/app"
+	"phase4/internal/testutil"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/go-playground/validator/v10"
@@ -24,21 +26,11 @@ func setupTest(t *testing.T) func() {
 		t.Fatalf("Setup failed: could not change to temp dir '%s': %v", tempDir, err)
 	}
 
-	return func() { os.Chdir(originalWd) }
-}
-
-func createTempConfigFile(t *testing.T, dir, filename, content string) {
-	t.Helper()
-
-	filePath := filepath.Join(dir, filename)
-	err := os.MkdirAll(filepath.Dir(filePath), 0755)
-	if err != nil {
-		t.Fatalf("Failed to create temp dir for config '%s': %v", filePath, err)
-	}
-
-	err = os.WriteFile(filePath, []byte(content), 0644)
-	if err != nil {
-		t.Fatalf("Failed to write temp config file '%s': %v", filePath, err)
+	return func() {
+		if err := os.Chdir(originalWd); err != nil {
+			// Use t.Errorf or t.Fatalf - Fatalf might be better as cleanup failed
+			t.Fatalf("Failed to change directory back to original '%s': %v", originalWd, err)
+		}
 	}
 }
 
@@ -58,18 +50,23 @@ func TestLoadConfig_ReadFileError(t *testing.T) {
 	defer cleanup()
 
 	filePath := filepath.Join(".", "config.yaml")
-	createTempConfigFile(t, ".", "config.yaml", `debug: true`)
-
-	err := os.Chmod(filePath, 0000)
-	if err != nil {
-		t.Skipf("Skipping test: Could not change file permissions to 0000: %v", err)
+	testutil.CreateTempConfigFile(t, ".", "config.yaml", `debug: true`)
+	if err := os.Chmod(filePath, 0000); err != nil { // Make unreadable
+		t.Fatalf("Failed to make config file unreadable: %v", err)
 	}
-	defer os.Chmod(filePath, 0644)
+	defer func() {
+		if err := os.Chmod(filePath, 0644); err != nil {
+			t.Errorf("Failed to restore config file permissions: %v", err) // Errorf might be sufficient here
+		}
+	}()
 
-	_, err = LoadConfig()
-
+	_, err := LoadConfig()
 	if err == nil {
-		t.Fatal("Expected an error due to file read permissions, but got nil")
+		t.Fatal("Expected an error when reading unreadable config file, but got nil")
+	}
+
+	if !errors.Is(err, os.ErrPermission) && !strings.Contains(err.Error(), "permission denied") { // Be a bit flexible
+		t.Errorf("Expected a permission error, but got: %v", err)
 	}
 
 	if !errors.Is(err, os.ErrPermission) {
@@ -92,7 +89,7 @@ func TestLoadConfig_ValidationError(t *testing.T) {
 input:
   channels: 0 # Invalid: must be > 0
 `
-	createTempConfigFile(t, ".", "config.yaml", yamlContent)
+	testutil.CreateTempConfigFile(t, ".", "config.yaml", yamlContent)
 
 	_, err := LoadConfig()
 
@@ -111,7 +108,7 @@ func TestLoadConfig_InvalidYamlSyntax(t *testing.T) {
 	defer cleanup()
 
 	yamlContent := `debug: true: {invalid syntax`
-	createTempConfigFile(t, ".", "config.yaml", yamlContent)
+	testutil.CreateTempConfigFile(t, ".", "config.yaml", yamlContent)
 
 	_, err := LoadConfig()
 
@@ -127,7 +124,7 @@ func TestLoadConfig_EnvOverride(t *testing.T) {
 	defer cleanup()
 
 	yamlContent := `debug: false`
-	createTempConfigFile(t, ".", "config.yaml", yamlContent)
+	testutil.CreateTempConfigFile(t, ".", "config.yaml", yamlContent)
 
 	t.Setenv("ENV_DEBUG", "true")
 
@@ -156,7 +153,7 @@ debug: true
 input:
   channels: 1
 `
-	createTempConfigFile(t, ".", "config.yaml", yamlContent)
+	testutil.CreateTempConfigFile(t, ".", "config.yaml", yamlContent)
 
 	expected := getDefaultConfig()
 	expected.Debug = true
@@ -179,8 +176,8 @@ func TestLoadConfig_FilePreference(t *testing.T) {
 	cleanup := setupTest(t)
 	defer cleanup()
 
-	createTempConfigFile(t, ".", "config.yaml", `debug: true`)         // Root file
-	createTempConfigFile(t, ".", "config/config.yaml", `debug: false`) // Subdir file
+	testutil.CreateTempConfigFile(t, ".", "config.yaml", `debug: true`)         // Root file
+	testutil.CreateTempConfigFile(t, ".", "config/config.yaml", `debug: false`) // Subdir file
 
 	expected := getDefaultConfig()
 	expected.Debug = true // Expect value from root file
