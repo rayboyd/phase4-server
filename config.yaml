@@ -1,31 +1,19 @@
 # Phase4 Configuration
 
 debug: false
-log_level: info
 
 input:
-  device: -1 # -1 default
-  channels: 1 # Mono input is sufficient for analysis, but need option for recording
-  sample_rate: 44100 # 44100, 48000, 96000, 192000
-  buffer_size: 256 # 256, 512, 1024, 2048
-  low_latency: true # true for low latency, false for high latency
+  device: -1
+  channels: 1
+  sample_rate: 44100
+  buffer_size: 256
+  low_latency: true
 
 dsp:
   enabled: true
   fft_window: "Hamming" # Options: BartlettHann, Blackman, BlackmanNuttall, Hann, Hamming, Lanczos, Nuttall
 
-# transport:
-#   udp_enabled: false
-#   udp_target_address: "127.0.0.1:50120" # Target IP and port
-#   udp_send_interval: "33.33ms" # Target interval ~30Hz
-#   websocket_enabled: true
-#   websocket_listen_address: ":8080"
-#   websocket_html_path: "web/index.html"
-
-# recording:
-#   enabled: false
-#   output_dir: "./recordings"
-#   format: wav
-#   bit_depth: 16
-#   max_duration_seconds: 0 # 0 for no limit
-#   silence_threshold: 0.01
+transport:
+  udp_enabled: false
+  udp_send_address: "127.0.0.1:8888"
+  udp_send_interval: "33.33ms" # Target interval ~30Hz

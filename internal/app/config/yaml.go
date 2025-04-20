@@ -3,14 +3,16 @@ package config
 import (
 	"os"
 	"phase4/internal/app"
+	"time"
 
 	"gopkg.in/yaml.v2"
 )
 
 type Config struct {
-	Debug bool        `yaml:"debug"`
-	Input InputConfig `yaml:"input"`
-	DSP   DSPConfig   `yaml:"dsp"`
+	Debug     bool            `yaml:"debug"`
+	Input     InputConfig     `yaml:"input"`
+	DSP       DSPConfig       `yaml:"dsp"`
+	Transport TrandportConfig `yaml:"transport"`
 }
 
 type DSPConfig struct {
@@ -24,6 +26,12 @@ type InputConfig struct {
 	SampleRate float64 `yaml:"sample_rate"`
 	BufferSize int     `yaml:"buffer_size"`
 	LowLatency bool    `yaml:"low_latency"`
+}
+
+type TrandportConfig struct {
+	UDPEnabled      bool          `yaml:"udp_enabled"`
+	UDPSendAddress  string        `yaml:"udp_send_address"`
+	UDPSendInterval time.Duration `yaml:"udp_send_interval"`
 }
 
 // LoadConfig will attempt to load the configuration from a list of candidate
@@ -40,6 +48,11 @@ func LoadConfig() (*Config, error) {
 			SampleRate: 44100,
 			BufferSize: 512,
 			LowLatency: false,
+		},
+		Transport: TrandportConfig{
+			UDPEnabled:      false,
+			UDPSendAddress:  "127.0.0.1:8888",
+			UDPSendInterval: 33 * time.Millisecond,
 		},
 	}
 
