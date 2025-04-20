@@ -44,13 +44,13 @@ type DSPConfig struct {
 func LoadConfig() (*Config, error) {
 	cfg := Config{
 		Debug: false,
-		// Input: InputConfig{
-		// 	Device:     -1,
-		// 	Channels:   2,
-		// 	SampleRate: 44100,
-		// 	BufferSize: 512,
-		// 	LowLatency: false,
-		// },
+		Input: InputConfig{
+			Device:     -1,
+			Channels:   2,
+			SampleRate: 44100,
+			BufferSize: 512,
+			LowLatency: false,
+		},
 		Transport: TransportConfig{
 			UDPEnabled:      false,
 			UDPSendAddress:  "127.0.0.1:8888",
