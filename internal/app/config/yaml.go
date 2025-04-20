@@ -41,25 +41,7 @@ type DSPConfig struct {
 // they will be returned. The function will apply any environment variables to
 // the configuration, taking precedence over the file values.
 func LoadConfig() (*Config, error) {
-	cfg := Config{
-		Debug: false,
-		Input: InputConfig{
-			Device:     -1,
-			Channels:   2,
-			SampleRate: 44100,
-			BufferSize: 512,
-			LowLatency: false,
-		},
-		Transport: TransportConfig{
-			UDPEnabled:      false,
-			UDPSendAddress:  "127.0.0.1:8888",
-			UDPSendInterval: 33 * time.Millisecond,
-		},
-		DSP: DSPConfig{
-			Enabled:   false,
-			FFTWindow: "Hann",
-		},
-	}
+	cfg := getDefaultConfig()
 
 	var fp string = ""
 	candidates := []string{
@@ -81,20 +63,42 @@ func LoadConfig() (*Config, error) {
 		return nil, err
 	}
 
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	if err := yaml.Unmarshal(data, cfg); err != nil {
 		return nil, err
 	}
 
-	applyEnvOverides(&cfg)
+	applyEnvOverides(cfg)
 
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("%w: %w", app.ErrConfigInvalid, err)
 	}
 
-	return &cfg, nil
+	return cfg, nil
 }
 
 func (cfg *Config) Validate() error {
 	validate := app.GetValidator()
 	return validate.Struct(cfg)
+}
+
+func getDefaultConfig() *Config {
+	return &Config{
+		Debug: false,
+		Input: InputConfig{
+			Device:     -1,
+			Channels:   2,
+			SampleRate: 44100,
+			BufferSize: 512,
+			LowLatency: false,
+		},
+		Transport: TransportConfig{
+			UDPEnabled:      false,
+			UDPSendAddress:  "127.0.0.1:8888",
+			UDPSendInterval: 33 * time.Millisecond,
+		},
+		DSP: DSPConfig{
+			Enabled:   false,
+			FFTWindow: "Hann",
+		},
+	}
 }
