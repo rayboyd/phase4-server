@@ -6,7 +6,6 @@ import (
 	"phase4/internal/app"
 	"time"
 
-	"github.com/go-playground/validator/v10"
 	"gopkg.in/yaml.v2"
 )
 
@@ -89,13 +88,13 @@ func LoadConfig() (*Config, error) {
 	applyEnvOverides(&cfg)
 
 	if err := cfg.Validate(); err != nil {
-		return nil, fmt.Errorf("%d: %w", app.ErrConfigInvalid, err)
+		return nil, fmt.Errorf("%w: %w", app.ErrConfigInvalid, err)
 	}
 
 	return &cfg, nil
 }
 
 func (cfg *Config) Validate() error {
-	validate := validator.New()
+	validate := app.GetValidator()
 	return validate.Struct(cfg)
 }

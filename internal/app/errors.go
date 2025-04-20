@@ -13,6 +13,8 @@ var (
 )
 
 func HandleFatalAndExit(err error) {
+	log.SetOutput(os.Stderr)
+
 	switch {
 	case errors.Is(err, ErrConfigInvalid):
 		log.Printf("%v: %v\n", ErrConfigInvalid, err)
