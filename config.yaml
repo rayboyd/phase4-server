@@ -11,9 +11,9 @@ input:
 
 dsp:
   enabled: true
-  fft_window: "Hamming" # Options: BartlettHann, Blackman, BlackmanNuttall, Hann, Hamming, Lanczos, Nuttall
+  fft_window: "Hamming"
 
 transport:
   udp_enabled: false
   udp_send_address: "127.0.0.1:8888"
-  udp_send_interval: "33.33ms" # Target interval ~30Hz
+  udp_send_interval: "33.33ms"

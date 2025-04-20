@@ -1,7 +1,26 @@
 package app
 
-import "errors"
+import (
+	"errors"
+	"log"
+	"os"
+)
 
 var (
-	ErrFileNotFound = errors.New("file not found")
+	ErrConfigInvalid = errors.New("config invalid")
+	ErrFileNotFound  = errors.New("file not found")
+	ErrUnknown       = errors.New("unknown error")
 )
+
+func HandleFatalAndExit(err error) {
+	switch {
+	case errors.Is(err, ErrConfigInvalid):
+		log.Printf("%v: %v\n", ErrConfigInvalid, err)
+	case errors.Is(err, ErrFileNotFound):
+		log.Printf("%v: %v\n", ErrFileNotFound, err)
+	default:
+		log.Printf("%v: %v\n", ErrUnknown, err)
+	}
+
+	os.Exit(1)
+}

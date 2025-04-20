@@ -5,10 +5,10 @@ import (
 	"strconv"
 )
 
-func applyEnvOverides(c *Config) {
+func applyEnvOverides(cfg *Config) {
 	if val, exists := os.LookupEnv("ENV_DEBUG"); exists {
 		if boolVal, err := strconv.ParseBool(val); err == nil {
-			c.Debug = boolVal
+			cfg.Debug = boolVal
 		}
 	}
 }

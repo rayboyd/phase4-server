@@ -2,16 +2,16 @@ package main
 
 import (
 	"log"
-	"os"
+	"phase4/internal/app"
 	"phase4/internal/app/config"
 )
 
 func main() {
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		log.Fatalln(err)
-		os.Exit(1)
+		app.HandleFatalAndExit(err)
 	}
 
-	log.Printf("Debug: %v\n", cfg)
+	log.Printf("Configuration loaded successfully.")
+	log.Printf("Debug enabled: %v\n", cfg.Debug)
 }
