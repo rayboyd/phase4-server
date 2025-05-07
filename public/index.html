@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FFT Visualizer & Debugger</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Dark mode scrollbar (optional, browser support varies) */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #374151;
+            /* gray-700 */
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #6b7280;
+            /* gray-500 */
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+            /* gray-400 */
+        }
+
+        input[type=range] {
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .preset-item.selected {
+            background-color: #374151;
+            /* gray-700 */
+        }
+
+        /* Darker selection for dark mode */
+
+        /* Ensure range inputs look okay in dark mode */
+        input[type=range] {
+            accent-color: #3b82f6;
+            /* blue-500 */
+        }
+
+        input[type=number],
+        input[type=text] {
+            background-color: #374151;
+            /* gray-700 */
+            border-color: #4b5563;
+            /* gray-600 */
+            color: #e5e7eb;
+            /* gray-200 */
+        }
+
+        input::placeholder {
+            color: #9ca3af;
+            /* gray-400 */
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-gray-300 flex flex-col items-center min-h-screen p-4">
+
+    <h1 class="text-2xl font-bold mb-4 text-gray-100">FFT Visualizer & Debugger</h1>
+
+    <!-- Data Display Panel -->
+    <div class="w-full max-w-6xl bg-gray-800 p-3 rounded shadow mb-4">
+        <!-- Use flex-wrap and gap for better responsiveness -->
+        <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+            <!-- Connection -->
+            <div class="flex items-center gap-2">
+                <label for="wsUrl" class="text-sm font-medium text-gray-400">URL:</label>
+                <input type="text" id="wsUrl" value="ws://127.0.0.1:8889/ws"
+                    class="border px-2 py-1 rounded text-sm flex-grow min-w-[200px]">
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="connectBtn"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm">Connect</button>
+                <button id="disconnectBtn" disabled
+                    class="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-sm">Disconnect</button>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-medium text-gray-400">Status:</span>
+                <span id="connectionStatus"
+                    class="font-bold px-2 py-0.5 rounded text-sm disconnected">Disconnected</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-medium text-gray-400">FPS:</span>
+                <span id="fpsDisplay" class="font-mono text-sm">--</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-medium text-gray-400">Frame:</span>
+                <span id="frameCountDisplay" class="font-mono text-sm">--</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-medium text-gray-400">Time:</span>
+                <span id="startTimeDisplay" class="font-mono text-xs">--</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Visualization Panel -->
+    <div class="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <canvas id="barVisualizer" class="w-full h-64 bg-black border border-gray-700 rounded shadow"></canvas>
+        <canvas id="circleVisualizer" class="w-full h-64 bg-black border border-gray-700 rounded shadow"></canvas>
+    </div>
+
+    <!-- Controls Panel -->
+    <div class="w-full max-w-6xl bg-gray-800 p-4 rounded shadow grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Visualization Parameters -->
+        <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <h2 class="text-lg font-semibold col-span-full mb-0 text-gray-100">Visualization Parameters</h2>
+            <div class="flex flex-col">
+                <label for="smoothingFactor" class="mb-1 text-sm font-medium text-gray-400">Smoothing (<span
+                        id="smoothingFactorValue">0.6</span>):</label>
+                <input type="range" id="smoothingFactor" min="0" max="0.99" step="0.01" value="0.6" class="w-full">
+            </div>
+            <div class="flex flex-col">
+                <label for="minDb" class="mb-1 text-sm font-medium text-gray-400">Min dB (<span
+                        id="minDbValue">-60</span>):</label>
+                <input type="range" id="minDb" min="-100" max="-10" step="1" value="-60" class="w-full">
+            </div>
+            <div class="flex flex-col">
+                <label for="maxDb" class="mb-1 text-sm font-medium text-gray-400">Max dB (<span
+                        id="maxDbValue">0</span>):</label>
+                <input type="range" id="maxDb" min="-20" max="20" step="1" value="0" class="w-full">
+            </div>
+            <div class="flex flex-col">
+                <label for="refMag" class="mb-1 text-sm font-medium text-gray-400">Ref Mag (<span
+                        id="refMagValue">1.0</span>):</label>
+                <input type="number" id="refMag" min="0.0001" max="1000" step="0.1" value="1.0"
+                    class="w-full border px-2 py-1 rounded text-sm">
+            </div>
+            <div class="flex items-center gap-2 col-span-full">
+                <input type="checkbox" id="logFreqScale" class="h-4 w-4 rounded text-blue-500 focus:ring-blue-600">
+                <label for="logFreqScale" class="text-sm font-medium text-gray-400">Logarithmic Frequency Scale
+                    (Bars)</label>
+            </div>
+        </div>
+
+        <!-- Presets -->
+        <div
+            class="md:col-span-1 flex flex-col gap-3 border-t md:border-t-0 md:border-l pt-4 md:pt-0 md:pl-6 border-gray-600">
+            <h2 class="text-lg font-semibold mb-0 text-gray-100">Presets</h2>
+            <div class="flex gap-2">
+                <input type="text" id="presetName" placeholder="Preset Name"
+                    class="border px-2 py-1 rounded flex-grow text-sm">
+                <button id="savePresetBtn"
+                    class="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm">Save</button>
+            </div>
+            <div class="flex flex-col gap-1 max-h-48 overflow-y-auto border rounded p-2 bg-gray-700 border-gray-600">
+                <span class="text-xs text-gray-400 italic mb-1">Click to load:</span>
+                <div id="presetList">
+                    <!-- Presets will be loaded here -->
+                    <span class="text-xs text-gray-500">No presets saved.</span>
+                </div>
+            </div>
+            <button id="deletePresetBtn" disabled
+                class="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-sm self-start">Delete
+                Selected</button>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const barCanvas = document.getElementById('barVisualizer');
+        const barCtx = barCanvas.getContext('2d');
+        const circleCanvas = document.getElementById('circleVisualizer');
+        const circleCtx = circleCanvas.getContext('2d');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const wsUrlInput = document.getElementById('wsUrl');
+        const fpsDisplay = document.getElementById('fpsDisplay');
+        const frameCountDisplay = document.getElementById('frameCountDisplay');
+        const startTimeDisplay = document.getElementById('startTimeDisplay');
+
+        // Parameter Controls
+        const smoothingFactorSlider = document.getElementById('smoothingFactor');
+        const smoothingFactorValueSpan = document.getElementById('smoothingFactorValue');
+        const minDbSlider = document.getElementById('minDb');
+        const minDbValueSpan = document.getElementById('minDbValue');
+        const maxDbSlider = document.getElementById('maxDb');
+        const maxDbValueSpan = document.getElementById('maxDbValue');
+        const refMagInput = document.getElementById('refMag');
+        const refMagValueSpan = document.getElementById('refMagValue');
+        const logFreqScaleCheckbox = document.getElementById('logFreqScale');
+
+        // Preset Controls
+        const presetNameInput = document.getElementById('presetName');
+        const savePresetBtn = document.getElementById('savePresetBtn');
+        const presetListDiv = document.getElementById('presetList');
+        const deletePresetBtn = document.getElementById('deletePresetBtn');
+
+        // --- State Variables ---
+        let ws = null;
+        let lastMagnitudes = [];
+        let lastFrameCount = '--';
+        let lastStartTime = '--';
+        let smoothedMagnitudesDb = [];
+        let presets = {};
+        let selectedPresetName = null;
+
+        // --- Visualization Parameters ---
+        let smoothingFactor = 0.6;
+        let minDb = -60;
+        let maxDb = 0;
+        let dbRange = maxDb - minDb;
+        let referenceMagnitude = 1.0;
+        let useLogFreqScale = false;
+        const EPSILON = 1e-10;
+
+        // --- FPS Calculation ---
+        let frameCount = 0;
+        let lastFpsUpdate = Date.now();
+
+        // --- Functions ---
+
+        function setupCanvas(canvas, ctx) {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+        }
+
+        function setupAllCanvases() {
+            setupCanvas(barCanvas, barCtx);
+            setupCanvas(circleCanvas, circleCtx);
+        }
+
+        function updateStatusUI(statusText, isConnected, isConnecting = false) {
+            connectionStatus.textContent = statusText;
+            // Dark mode status colors
+            connectionStatus.classList.remove('connected', 'disconnected', 'connecting', 'text-green-400', 'bg-green-900', 'text-red-400', 'bg-red-900', 'text-orange-400', 'bg-orange-900');
+            if (isConnected) {
+                connectionStatus.classList.add('connected', 'text-green-400', 'bg-green-900');
+            } else if (isConnecting) {
+                connectionStatus.classList.add('connecting', 'text-orange-400', 'bg-orange-900');
+            } else {
+                connectionStatus.classList.add('disconnected', 'text-red-400', 'bg-red-900');
+            }
+
+            connectBtn.disabled = isConnected || isConnecting;
+            disconnectBtn.disabled = !isConnected;
+
+            if (!isConnected && !isConnecting) {
+                lastMagnitudes = [];
+                smoothedMagnitudesDb = [];
+                fpsDisplay.textContent = '--';
+                frameCountDisplay.textContent = '--';
+                startTimeDisplay.textContent = '--';
+            }
+        }
+
+        function connect() {
+            const url = wsUrlInput.value;
+            if (ws) ws.close();
+            console.log(`Connecting to ${url}...`);
+            updateStatusUI('Connecting...', false, true);
+
+            try {
+                ws = new WebSocket(url);
+                ws.onopen = () => {
+                    console.log('WebSocket connected');
+                    updateStatusUI('Connected', true);
+                    lastFpsUpdate = Date.now();
+                    frameCount = 0;
+                };
+                ws.onclose = (event) => {
+                    console.log('WebSocket closed:', event.reason || `Code ${event.code}`);
+                    updateStatusUI('Disconnected', false);
+                    ws = null;
+                };
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    updateStatusUI('Error', false);
+                    ws = null;
+                };
+                ws.onmessage = (event) => {
+                    try {
+                        if (typeof event.data === 'string') {
+                            const data = JSON.parse(event.data);
+                            if (data.type === 'fft_magnitudes' && Array.isArray(data.magnitudes)) {
+                                lastMagnitudes = data.magnitudes;
+                                lastFrameCount = typeof data.frameCount === 'number' ? data.frameCount : '--';
+                                lastStartTime = typeof data.startTime === 'string' ? data.startTime : '--';
+                                frameCount++;
+                            } else { console.warn("Unexpected msg structure:", data); }
+                        } else { console.warn("Unexpected data type:", typeof event.data); }
+
+                        const now = Date.now();
+                        if (now - lastFpsUpdate >= 1000) {
+                            const fps = Math.round(frameCount / ((now - lastFpsUpdate) / 1000));
+                            fpsDisplay.textContent = `${fps}`;
+                            frameCount = 0;
+                            lastFpsUpdate = now;
+                        }
+                        frameCountDisplay.textContent = lastFrameCount;
+                        try {
+                            const date = new Date(lastStartTime);
+                            startTimeDisplay.textContent = isNaN(date) ? lastStartTime : date.toLocaleTimeString([], { hour12: false }) + '.' + date.getMilliseconds().toString().padStart(3, '0');
+                        } catch { startTimeDisplay.textContent = lastStartTime; }
+                    } catch (e) { console.error('Msg process error:', e, event.data); }
+                };
+            } catch (e) {
+                console.error('WS creation error:', e);
+                updateStatusUI('Failed', false);
+            }
+        }
+
+        function disconnect() {
+            if (ws) { console.log('Disconnecting...'); ws.close(); }
+        }
+
+        // --- Combined Draw Function ---
+        function draw() {
+            requestAnimationFrame(draw);
+            if (!barCtx || !circleCtx) return;
+
+            const barWidth = barCanvas.clientWidth;
+            const barHeight = barCanvas.clientHeight;
+            const circleWidth = circleCanvas.clientWidth;
+            const circleHeight = circleCanvas.clientHeight;
+
+            // --- Clear Canvases ---
+            barCtx.fillStyle = '#000000'; // Black background
+            barCtx.fillRect(0, 0, barWidth, barHeight);
+            circleCtx.fillStyle = '#000000'; // Black background
+            circleCtx.fillRect(0, 0, circleWidth, circleHeight);
+
+            const currentMagnitudes = lastMagnitudes;
+
+            if (!currentMagnitudes || currentMagnitudes.length === 0) {
+                const waitingText = 'Waiting for data...';
+                const font = '14px sans-serif';
+                const color = '#6b7280'; // gray-500
+
+                barCtx.fillStyle = color; barCtx.font = font; barCtx.textAlign = 'center';
+                barCtx.fillText(waitingText, barWidth / 2, barHeight / 2);
+
+                circleCtx.fillStyle = color; circleCtx.font = font; circleCtx.textAlign = 'center';
+                circleCtx.fillText(waitingText, circleWidth / 2, circleHeight / 2);
+
+                if (smoothedMagnitudesDb.length > 0) smoothedMagnitudesDb = [];
+                return;
+            }
+
+            const numBins = currentMagnitudes.length; // Use numBins for clarity
+
+            if (smoothedMagnitudesDb.length !== numBins) {
+                smoothedMagnitudesDb = new Array(numBins).fill(minDb);
+            }
+
+            // --- Shared Calculations & Smoothing ---
+            const nextSmoothedMagnitudesDb = new Array(numBins);
+            const heightsNormalized = new Array(numBins); // Store normalized heights
+
+            for (let i = 0; i < numBins; i++) {
+                const rawMag = typeof currentMagnitudes[i] === 'number' ? currentMagnitudes[i] : 0;
+                const currentDb = 20 * Math.log10((rawMag / referenceMagnitude) + EPSILON);
+                const clampedDb = Math.max(minDb, Math.min(maxDb, currentDb));
+
+                const previousDb = smoothedMagnitudesDb[i];
+                const smoothedDb = previousDb * smoothingFactor + clampedDb * (1 - smoothingFactor);
+                nextSmoothedMagnitudesDb[i] = smoothedDb;
+
+                heightsNormalized[i] = dbRange > 0 ? (smoothedDb - minDb) / dbRange : 0;
+            }
+            smoothedMagnitudesDb = nextSmoothedMagnitudesDb; // Update for next frame
+
+            // --- Draw Bar Visualizer ---
+            const barGradient = barCtx.createLinearGradient(0, 0, 0, barHeight);
+            barGradient.addColorStop(0, '#22c55e');   // green-500
+            barGradient.addColorStop(0.5, '#eab308'); // yellow-500
+            barGradient.addColorStop(1, '#ef4444');   // red-500
+            barCtx.fillStyle = barGradient;
+
+            const minLog = Math.log10(1);
+            const maxLog = Math.log10(numBins);
+            const logRange = maxLog - minLog;
+
+            for (let i = 0; i < numBins; i++) {
+                const hNorm = heightsNormalized[i];
+                const h = Math.max(1, hNorm * barHeight);
+                let x, w;
+                if (useLogFreqScale && numBins > 1 && logRange > 0) {
+                    const currentLog = Math.log10(i + 1);
+                    const nextLog = Math.log10(i + 2);
+                    const xNorm = (currentLog - minLog) / logRange;
+                    const nextXNorm = (nextLog - minLog) / logRange;
+                    x = xNorm * barWidth;
+                    w = Math.max(1, (nextXNorm * barWidth) - x - 1);
+                } else {
+                    w = barWidth / numBins;
+                    x = i * w;
+                    w = Math.max(1, w - 1);
+                }
+                barCtx.fillRect(x, barHeight - h, w, h);
+            }
+
+            // --- Draw Circle Visualizer ---
+            const centerX = circleWidth / 2;
+            const centerY = circleHeight / 2;
+            const maxRadius = Math.min(centerX, centerY) * 0.9; // 90% of smallest dimension
+            const minRadius = maxRadius * 0.2; // Inner radius (20% of max)
+            const radiusRange = maxRadius - minRadius;
+            const angleStep = (2 * Math.PI) / numBins;
+
+            // Create a gradient for the circle lines
+            const circleGradient = circleCtx.createRadialGradient(centerX, centerY, minRadius, centerX, centerY, maxRadius);
+            circleGradient.addColorStop(0, '#ef4444');   // red-500 (inner)
+            circleGradient.addColorStop(0.5, '#eab308'); // yellow-500 (middle)
+            circleGradient.addColorStop(1, '#22c55e');   // green-500 (outer)
+            circleCtx.strokeStyle = circleGradient;
+            circleCtx.lineWidth = Math.max(1, (2 * Math.PI * minRadius) / numBins * 0.8); // Adjust line width based on inner circumference
+
+            circleCtx.beginPath(); // Start path for all lines
+            for (let i = 0; i < numBins; i++) {
+                const hNorm = heightsNormalized[i];
+                const currentRadius = minRadius + hNorm * radiusRange;
+                const angle = i * angleStep - Math.PI / 2; // Start from top (-90 degrees)
+
+                const startX = centerX + minRadius * Math.cos(angle);
+                const startY = centerY + minRadius * Math.sin(angle);
+                const endX = centerX + currentRadius * Math.cos(angle);
+                const endY = centerY + currentRadius * Math.sin(angle);
+
+                circleCtx.moveTo(startX, startY);
+                circleCtx.lineTo(endX, endY);
+            }
+            circleCtx.stroke(); // Draw all lines at once
+        }
+
+
+        // --- Preset Functions ---
+        function saveCurrentPreset(name) {
+            if (!name || typeof name !== 'string' || name.trim() === '') {
+                alert("Please enter a valid preset name."); return;
+            }
+            name = name.trim();
+            presets[name] = {
+                smoothingFactor: smoothingFactor, minDb: minDb, maxDb: maxDb,
+                referenceMagnitude: referenceMagnitude, useLogFreqScale: useLogFreqScale
+            };
+            localStorage.setItem('fftDebuggerPresets', JSON.stringify(presets));
+            renderPresetList();
+            selectPreset(name);
+            presetNameInput.value = '';
+            console.log(`Preset "${name}" saved.`);
+        }
+
+        function loadPreset(name) {
+            if (!presets[name]) { console.error(`Preset "${name}" not found.`); return; }
+            const p = presets[name];
+            smoothingFactor = p.smoothingFactor; minDb = p.minDb; maxDb = p.maxDb;
+            referenceMagnitude = p.referenceMagnitude; useLogFreqScale = p.useLogFreqScale;
+            dbRange = maxDb - minDb;
+            smoothingFactorSlider.value = smoothingFactor; minDbSlider.value = minDb;
+            maxDbSlider.value = maxDb; refMagInput.value = referenceMagnitude;
+            logFreqScaleCheckbox.checked = useLogFreqScale;
+            updateParameterDisplays();
+            smoothedMagnitudesDb = new Array(lastMagnitudes.length).fill(minDb);
+            selectPreset(name);
+            console.log(`Preset "${name}" loaded.`);
+        }
+
+        function deletePreset(name) {
+            if (!name || !presets[name]) return;
+            if (confirm(`Are you sure you want to delete preset "${name}"?`)) {
+                delete presets[name];
+                localStorage.setItem('fftDebuggerPresets', JSON.stringify(presets));
+                renderPresetList();
+                selectedPresetName = null;
+                deletePresetBtn.disabled = true;
+                console.log(`Preset "${name}" deleted.`);
+            }
+        }
+
+        function renderPresetList() {
+            presetListDiv.innerHTML = '';
+            const names = Object.keys(presets).sort();
+            if (names.length === 0) {
+                presetListDiv.innerHTML = '<span class="text-xs text-gray-500">No presets saved.</span>'; return;
+            }
+            names.forEach(name => {
+                const item = document.createElement('div');
+                item.textContent = name;
+                item.className = 'preset-item text-xs cursor-pointer hover:bg-gray-600 p-1 rounded'; // Adjusted for dark mode
+                if (name === selectedPresetName) { item.classList.add('selected', 'font-semibold'); }
+                item.addEventListener('click', () => loadPreset(name));
+                presetListDiv.appendChild(item);
+            });
+        }
+
+        function selectPreset(name) {
+            selectedPresetName = name;
+            presetNameInput.value = name;
+            deletePresetBtn.disabled = !name;
+            const items = presetListDiv.querySelectorAll('.preset-item');
+            items.forEach(item => {
+                item.classList.toggle('selected', item.textContent === name);
+                item.classList.toggle('font-semibold', item.textContent === name);
+            });
+        }
+
+        function updateParameterDisplays() {
+            smoothingFactorValueSpan.textContent = smoothingFactor.toFixed(2);
+            minDbValueSpan.textContent = minDb.toFixed(0);
+            maxDbValueSpan.textContent = maxDb.toFixed(0);
+            refMagValueSpan.textContent = referenceMagnitude.toFixed(4);
+        }
+
+        function loadPresetsFromStorage() {
+            const storedPresets = localStorage.getItem('fftDebuggerPresets');
+            if (storedPresets) {
+                try { presets = JSON.parse(storedPresets); }
+                catch (e) { console.error("Failed to parse presets:", e); presets = {}; }
+            } else { presets = {}; }
+            renderPresetList();
+        }
+
+        // --- Event Listeners ---
+        connectBtn.addEventListener('click', connect);
+        disconnectBtn.addEventListener('click', disconnect);
+        window.addEventListener('resize', setupAllCanvases); // Setup both canvases on resize
+
+        // Parameter Control Listeners
+        smoothingFactorSlider.addEventListener('input', (e) => { smoothingFactor = parseFloat(e.target.value); updateParameterDisplays(); });
+        minDbSlider.addEventListener('input', (e) => { minDb = parseFloat(e.target.value); dbRange = maxDb - minDb; updateParameterDisplays(); smoothedMagnitudesDb = new Array(lastMagnitudes.length).fill(minDb); });
+        maxDbSlider.addEventListener('input', (e) => { maxDb = parseFloat(e.target.value); dbRange = maxDb - minDb; updateParameterDisplays(); smoothedMagnitudesDb = new Array(lastMagnitudes.length).fill(minDb); });
+        refMagInput.addEventListener('input', (e) => { const val = parseFloat(e.target.value); if (!isNaN(val) && val > 0) { referenceMagnitude = val; updateParameterDisplays(); smoothedMagnitudesDb = new Array(lastMagnitudes.length).fill(minDb); } });
+        logFreqScaleCheckbox.addEventListener('change', (e) => { useLogFreqScale = e.target.checked; });
+
+        // Preset Control Listeners
+        savePresetBtn.addEventListener('click', () => { saveCurrentPreset(presetNameInput.value); });
+        deletePresetBtn.addEventListener('click', () => { deletePreset(selectedPresetName); });
+
+        // --- Initial Setup ---
+        setupAllCanvases(); // Setup both canvases initially
+        // Initialize parameter variables from controls
+        smoothingFactor = parseFloat(smoothingFactorSlider.value); minDb = parseFloat(minDbSlider.value); maxDb = parseFloat(maxDbSlider.value);
+        dbRange = maxDb - minDb; referenceMagnitude = parseFloat(refMagInput.value); useLogFreqScale = logFreqScaleCheckbox.checked;
+        // Load presets and update displays
+        loadPresetsFromStorage();
+        updateParameterDisplays();
+        // Start drawing loop
+        draw();
+
+    </script>
+
+</body>
+
+</html>
