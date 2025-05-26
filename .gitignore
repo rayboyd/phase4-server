@@ -1,0 +1,14 @@
+.DS_Store
+.vscode/
+*.test
+*.wav
+*.prof
+*.txt
+*.env
+*.out
+/bin
+/logs
+/docs
+/dist
+/node_modules
+notes.*

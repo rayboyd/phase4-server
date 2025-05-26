@@ -1,0 +1,24 @@
+# Phase4 Configuration
+
+debug: false
+log_level: "info"
+
+input:
+  device: 7
+  channels: 1
+  sample_rate: 44100
+  buffer_size: 256
+  low_latency: true
+  use_default: true
+
+dsp:
+  enabled: true
+  fft_window: "BartlettHann"
+
+transport:
+  udp_enabled: false
+  udp_send_address: "127.0.0.1:8888"
+  udp_send_interval: "33.33ms"
+  websocket_enabled: true
+  websocket_address: "127.0.0.1:8889"
+  websocket_path: "/ws"
